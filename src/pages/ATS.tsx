@@ -9,8 +9,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { AnonymizedProfile } from "@/components/ats/AnonymizedProfile";
+import { Badge } from "@/components/ui/badge";
 
 const ATS = () => {
+  const { toast } = useToast();
+
+  // Mock data - in real app, this would come from your ATS integration
+  const mockCandidates = [
+    {
+      id: "CAND-001",
+      role: "Frontend Developer",
+      yearsExperience: 5,
+      skills: ["React", "TypeScript", "CSS"],
+      stage: "Applied"
+    },
+    {
+      id: "CAND-002",
+      role: "UX Designer",
+      yearsExperience: 3,
+      skills: ["Figma", "User Research", "Prototyping"],
+      stage: "Screening"
+    },
+    {
+      id: "CAND-003",
+      role: "Product Manager",
+      yearsExperience: 7,
+      skills: ["Agile", "Product Strategy", "Data Analysis"],
+      stage: "Interview"
+    }
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -59,18 +89,24 @@ const ATS = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {["Applied", "Screening", "Interview", "Offer"].map((stage) => (
               <div key={stage} className="space-y-2">
-                <div className="p-2 bg-muted rounded-md font-medium">
-                  {stage}
+                <div className="p-2 bg-muted rounded-md font-medium flex items-center justify-between">
+                  <span>{stage}</span>
+                  <Badge variant="secondary">
+                    {mockCandidates.filter(c => c.stage === stage).length}
+                  </Badge>
                 </div>
                 <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <Card key={i} className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardContent className="p-4">
-                        <h3 className="font-medium">Candidate {i}</h3>
-                        <p className="text-sm text-muted-foreground">Frontend Developer</p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {mockCandidates
+                    .filter(candidate => candidate.stage === stage)
+                    .map((candidate) => (
+                      <AnonymizedProfile
+                        key={candidate.id}
+                        candidateId={candidate.id}
+                        role={candidate.role}
+                        yearsOfExperience={candidate.yearsExperience}
+                        skills={candidate.skills}
+                      />
+                    ))}
                 </div>
               </div>
             ))}
@@ -83,19 +119,32 @@ const ATS = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2">Name</th>
+                    <th className="text-left py-2">ID</th>
                     <th className="text-left py-2">Position</th>
+                    <th className="text-left py-2">Skills</th>
                     <th className="text-left py-2">Status</th>
-                    <th className="text-left py-2">Applied</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="border-b last:border-0">
-                      <td className="py-2">Candidate {i+1}</td>
-                      <td>Frontend Developer</td>
-                      <td>Screening</td>
-                      <td>Feb 28, 2023</td>
+                  {mockCandidates.map((candidate) => (
+                    <tr key={candidate.id} className="border-b last:border-0">
+                      <td className="py-2">{candidate.id}</td>
+                      <td>{candidate.role}</td>
+                      <td>
+                        <div className="flex flex-wrap gap-1">
+                          {candidate.skills.slice(0, 2).map((skill, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">
+                              {skill}
+                            </Badge>
+                          ))}
+                          {candidate.skills.length > 2 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{candidate.skills.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td>{candidate.stage}</td>
                     </tr>
                   ))}
                 </tbody>
