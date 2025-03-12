@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -30,6 +29,7 @@ export const Sidebar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(!isMobile);
 
   const navigationItems: NavigationItem[] = [
+    { title: "Dashboard", path: "/dashboard", icon: <Briefcase size={20} /> },
     { title: "Jobs", path: "/jobs", icon: <Briefcase size={20} /> },
     { title: "Candidates", path: "/candidates", icon: <Users size={20} /> },
     { title: "Analytics", path: "/analytics", icon: <BarChart2 size={20} /> },

@@ -1,5 +1,5 @@
-
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { Moon, Sun } from "lucide-react";
 const Login = () => {
   const [email, setEmail] = useState("demo@talentfusion.com");
   const [password, setPassword] = useState("password");
-  const { login, isLoading } = useAuth();
+  const { login, loading } = useAuth();
   const { toast } = useToast();
   const { theme, toggleTheme } = useTheme();
 
@@ -29,7 +29,15 @@ const Login = () => {
       return;
     }
     
-    await login(email, password);
+    try {
+      await login(email, password);
+    } catch (error: any) {
+      toast({
+        title: "Login Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -81,16 +89,22 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in"}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="justify-center">
-          <p className="text-sm text-muted-foreground text-center">
+        <CardFooter className="flex flex-col space-y-4 text-center">
+          <p className="text-sm text-muted-foreground">
             Demo credentials are pre-filled for you. <br />
             Just click "Sign in" to access the dashboard.
           </p>
+          <div className="text-sm">
+            Don't have an account?{" "}
+            <Link to="/register" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </div>
         </CardFooter>
       </Card>
     </div>

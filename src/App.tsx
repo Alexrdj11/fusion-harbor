@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { UnifiedRegister } from "@/components/auth/UnifiedRegister";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Jobs from "./pages/Jobs";
@@ -31,8 +32,17 @@ const App = () => (
             <Sonner />
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<UnifiedRegister />} />
               
-              <Route path="/" element={<MainLayout />}>
+              {/* Protected Recruiter Routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute allowedRole="recruiter">
+                    <MainLayout />
+                  </ProtectedRoute>
+                }
+              >
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="jobs" element={<Jobs />} />
@@ -44,6 +54,12 @@ const App = () => (
                 <Route path="reports" element={<Reports />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
+              
+              {/* Redirect applicants */}
+              <Route
+                path="/applicant"
+                element={<Navigate to="http://localhost:3000/applicant" replace />}
+              />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

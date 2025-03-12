@@ -1,121 +1,114 @@
-
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
-import { Spinner } from "@/components/common/Spinner";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
+import { createContext, useContext, useEffect, useState } from 'react';
+import { User, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 interface AuthContextType {
   user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
+  userRole: 'applicant' | 'recruiter' | null;
+  loading: boolean;
+  register: (email: string, password: string, role: 'applicant' | 'recruiter') => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-// Mock user data - in a real app, this would come from an API
-const mockUser: User = {
-  id: "1",
-  name: "John Doe",
-  email: "john@talentfusion.com",
-  role: "admin",
-};
-
-// Default credentials for demo purposes
-const validCredentials = {
-  email: "demo@talentfusion.com",
-  password: "password",
-};
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
-  children 
-}) => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const navigate = useNavigate();
-  const { toast } = useToast();
+  const [userRole, setUserRole] = useState<'applicant' | 'recruiter' | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Check for saved auth state on mount
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const savedUser = localStorage.getItem("talentfusion_user");
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setUser(user);
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setUserRole(userData?.role || null);
+          } else {
+            console.warn('User document does not exist for:', user.uid);
+            setUserRole(null);
+          }
+        } catch (error) {
+          console.error('Error fetching user role:', error);
+          setUserRole(null);
         }
-      } catch (error) {
-        console.error("Auth initialization error:", error);
-      } finally {
-        setIsLoading(false);
+      } else {
+        setUserRole(null);
       }
-    };
-    
-    checkAuth();
+      setLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    
+  const register = async (email: string, password: string, role: 'applicant' | 'recruiter') => {
     try {
-      // Simulate API request delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
       
-      // Check credentials (in a real app, this would be a server request)
-      if (email === validCredentials.email && password === validCredentials.password) {
-        setUser(mockUser);
-        localStorage.setItem("talentfusion_user", JSON.stringify(mockUser));
-        toast({
-          title: "Login successful",
-          description: "Welcome back to TalentFusion",
-        });
-        navigate("/dashboard");
-      } else {
-        throw new Error("Invalid credentials");
-      }
-    } catch (error) {
-      toast({
-        title: "Login failed",
-        description: "Please check your credentials and try again",
-        variant: "destructive",
+      // Create user document in Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        email,
+        role,
+        createdAt: new Date().toISOString(),
       });
-      console.error("Login error:", error);
-    } finally {
-      setIsLoading(false);
+      
+      setUserRole(role);
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Registration error:', error);
+      return Promise.reject(error);
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("talentfusion_user");
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out",
-    });
-    navigate("/login");
+  const login = async (email: string, password: string) => {
+    try {
+      const { user } = await signInWithEmailAndPassword(auth, email, password);
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUserRole(userData?.role || null);
+      }
+      return Promise.resolve();
+    } catch (error: any) {
+      console.error('Login error:', error);
+      if (error.code === 'auth/too-many-requests') {
+        throw new Error('Too many login attempts. Please try again later or reset your password.');
+      } else if (error.code === 'auth/wrong-password') {
+        throw new Error('Incorrect password. Please try again.');
+      } else if (error.code === 'auth/user-not-found') {
+        throw new Error('No account found with this email.');
+      } else {
+        throw new Error('Failed to sign in. Please try again.');
+      }
+    }
   };
 
-  if (isLoading) {
-    return <Spinner />;
-  }
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setUserRole(null);
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Logout error:', error);
+      return Promise.reject(error);
+    }
+  };
+
+  const value = {
+    user,
+    userRole,
+    loading,
+    register,
+    login,
+    logout,
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
@@ -123,8 +116,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
